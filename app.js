@@ -103,14 +103,22 @@ function renderRanking(){
   root.innerHTML=entries.map(a=>{
    const t=a.ticker,m=a.metrics,close=a.rows[0].close,p=state.tradePlan?.[t]||{side:'review',qty:m.qty},q=Number(p.qty??m.qty)||0;
    const side=p.side||'review',sideLabel=side==='buy'?'COMPRA':side==='sell'?'VENDA':'ACOMPANHAR',sideClass=side==='buy'?'summary-buy':side==='sell'?'summary-sell':'summary-watch';
-   const potential=side==='buy'?q*(m.sell-m.buy):side==='sell'?q*(m.sell-close):NaN;
-   const target=side==='buy'?m.buy:side==='sell'?m.sell:NaN;
+   const common=`<div class="summary-kpis"><div><span>Fechamento de referência</span><b>${money(close)}</b></div><div><span>Pontuação geral</span><b>${fmt(m.score,0)}</b></div><div><span>Quantidade selecionada</span><b>${fmt(q,0)}</b></div><div><span>LPA · 3 dias</span><b>${money(m.lpa3)}</b></div></div>`;
+   let operation='';
+   if(side==='buy'){
+    const capital=q*m.buy;
+    operation=`<div class="summary-operation summary-operation-buy"><div class="summary-operation-title">Plano de compra</div><div class="summary-prices"><div class="price-box buy-box"><span>Preço provável de compra</span><b>${money(m.buy)}</b><small>${pct(m.buy/close-1)} vs. fechamento</small></div></div><div class="summary-bottom"><span>Capital estimado para compra</span><b>${money(capital)}</b></div>`;
+    if(Number.isFinite(m.sell)&&m.sell>0)operation+=`<div class="summary-bottom"><span>Retorno potencial até o alvo de saída</span><b class="${m.sell>=m.buy?'good':'danger'}">${money(q*(m.sell-m.buy))} · ${pct(m.sell/m.buy-1)}</b></div>`;
+    operation+='</div>';
+   }else if(side==='sell'){
+    const proceeds=q*m.sell,profit=q*(m.sell-close);
+    operation=`<div class="summary-operation summary-operation-sell"><div class="summary-operation-title">Plano de venda</div><div class="summary-prices"><div class="price-box sell-box"><span>Preço provável de venda</span><b>${money(m.sell)}</b><small>${pct(m.sell/close-1)} vs. fechamento</small></div></div><div class="summary-bottom"><span>Valor bruto estimado da venda</span><b>${money(proceeds)}</b></div><div class="summary-bottom"><span>Resultado estimado vs. fechamento</span><b class="${profit>=0?'good':'danger'}">${money(profit)} · ${pct(m.sell/close-1)}</b></div></div>`;
+   }else{
+    operation=`<div class="summary-operation summary-operation-watch"><div class="summary-operation-title">Acompanhamento · sem ordem definida</div><div class="summary-bottom"><span>Beta calculado vs. IBOV</span><b>${fmt(m.beta,3)}</b></div></div>`;
+   }
    return `<article class="asset-summary-card ${sideClass}">
     <div class="summary-card-head"><div><strong class="summary-ticker">${safeText(t)}</strong><span class="summary-date">Fechamento ${safeText(a.rows[0].date)}</span></div><span class="operation-pill">${sideLabel}</span></div>
-    <div class="summary-kpis"><div><span>Fechamento</span><b>${money(close)}</b></div><div><span>Pontuação</span><b>${fmt(m.score,0)}</b></div><div><span>LPA · 3 dias</span><b>${money(m.lpa3)}</b></div><div><span>Quantidade</span><b>${fmt(q,0)}</b></div></div>
-    <div class="summary-prices"><div class="price-box buy-box"><span>Compra provável</span><b>${money(m.buy)}</b><small>${pct(m.buy/close-1)}</small></div><div class="price-box sell-box"><span>Venda provável</span><b>${money(m.sell)}</b><small>${pct(m.sell/close-1)}</small></div></div>
-    <div class="summary-bottom"><span>${side==='buy'?'Investimento ao preço de compra':side==='sell'?'Valor estimado da venda':'Preço de referência da operação'}</span><b>${side==='buy'?money(q*m.buy):side==='sell'?money(q*m.sell):'—'}</b></div>
-    <div class="summary-bottom"><span>${side==='buy'?'Resultado potencial compra → venda':side==='sell'?'Resultado vs. fechamento atual':'Beta · IBOV'}</span><b class="${Number.isFinite(potential)?(potential>=0?'good':'danger'):''}">${Number.isFinite(potential)?money(potential):fmt(m.beta,3)}</b></div>
+    ${common}${operation}
    </article>`;
   }).join('')||'<div class="summary-empty">Nenhum ativo carregado. Pesquise e adicione ações para montar seu resumo.</div>';
  }
@@ -201,7 +209,7 @@ function renderCompare(){
 function renderNews(){if(!$('newsFeed'))return;if(!state.news.length){$('newsFeed').textContent='Nenhuma manchete disponível.';return}$('newsFeed').innerHTML=state.news.map(n=>`<div class="news"><a href="${safeText(n.link)}" target="_blank" rel="noopener">${safeText(n.title)}</a><div class="small muted">${safeText(n.source)} · ${safeText(n.date)}</div></div>`).join('')}
 function renderIbov(){if(!state.ibov)return;const m=state.ibov.metrics,r=state.ibov.rows[0];$('ibovMetrics').innerHTML=[['IBOV último',fmt(r.close,0)],['Variação semanal',pct(m.weekly)],['Risco pelo preço',m.priceRisk],['Tendência',marketTrend()]].map(([l,v])=>`<div class="metric"><label>${l}</label><strong>${v}</strong></div>`).join('');$('ibovStatus').textContent='Último pregão: '+r.date+' · histórico '+state.ibov.rows.length+' pregões'}
 
-function summaryExportRows(){return state.tickers.map(t=>state.data[t]).filter(Boolean).map(a=>{const p=state.tradePlan?.[a.ticker]||{side:'review',qty:a.metrics.qty},q=Number(p.qty??a.metrics.qty)||0,m=a.metrics,close=a.rows[0].close,side=p.side||'review';return {ticker:a.ticker,side,qty:q,close,buy:m.buy,buyPct:m.buy/close-1,sell:m.sell,sellPct:m.sell/close-1,score:m.score,lpa:m.lpa3,beta:m.beta,profit:side==='buy'?q*(m.sell-m.buy):side==='sell'?q*(m.sell-close):NaN,investment:side==='buy'?q*m.buy:side==='sell'?q*close:NaN,date:a.rows[0].date}})}
+function summaryExportRows(){return state.tickers.map(t=>state.data[t]).filter(Boolean).map(a=>{const p=state.tradePlan?.[a.ticker]||{side:'review',qty:a.metrics.qty},q=Number(p.qty??a.metrics.qty)||0,m=a.metrics,close=a.rows[0].close,side=p.side||'review';return {ticker:a.ticker,side,qty:q,close,buy:m.buy,buyPct:m.buy/close-1,sell:m.sell,sellPct:m.sell/close-1,score:m.score,lpa:m.lpa3,beta:m.beta,profit:side==='buy'?q*(m.sell-m.buy):side==='sell'?q*(m.sell-close):NaN,investment:side==='buy'?q*m.buy:side==='sell'?q*m.sell:NaN,date:a.rows[0].date}})}
 async function exportSummaryJPEG(){
  const rows=summaryExportRows();if(!rows.length){alert('Carregue pelo menos um ativo antes de exportar.');return}
  const W=1200,pad=48,gap=24,cols=rows.length===1?1:2,cardW=(W-pad*2-gap*(cols-1))/cols,cardH=390,headH=150,footH=72,totalH=pad+headH+Math.ceil(rows.length/cols)*(cardH+gap)+footH;
@@ -212,7 +220,10 @@ async function exportSummaryJPEG(){
  ctx.fillStyle='#9aabc0';ctx.font='22px system-ui';ctx.fillText('Plano para o próximo pregão · '+new Date().toLocaleDateString('pt-BR'),pad,pad+82);
  ctx.fillStyle='#9aabc0';ctx.font='18px system-ui';ctx.fillText('Preços projetados com base no último fechamento disponível. Valores brutos, sem custos e impostos.',pad,pad+118);
  rows.forEach((r,i)=>{const x=pad+(i%cols)*(cardW+gap),y=pad+headH+Math.floor(i/cols)*(cardH+gap),buy=r.side==='buy',sell=r.side==='sell',accent=buy?'#36c98f':sell?'#ff6b75':'#69a9ff',label=buy?'COMPRA':sell?'VENDA':'ACOMPANHAR';rr(x,y,cardW,cardH,22,'#121d2e','#26364d');rr(x+18,y+18,cardW-36,64,14,buy?'#123b32':sell?'#49252e':'#1b2b40');ctx.fillStyle='#eef4fb';ctx.font='bold 30px system-ui';ctx.fillText(r.ticker,x+38,y+60);ctx.textAlign='right';ctx.fillStyle=accent;ctx.font='bold 22px system-ui';ctx.fillText(label,x+cardW-38,y+58);ctx.textAlign='left';
-  const items=[['Fechamento',money(r.close)],['Quantidade',fmt(r.qty,0)],['Pontuação',fmt(r.score,0)],['LPA · 3 dias',money(r.lpa)],['Compra provável',money(r.buy)+'  ('+pct(r.buyPct)+')'],['Venda provável',money(r.sell)+'  ('+pct(r.sellPct)+')'],[buy?'Investimento estimado':sell?'Valor de referência':'Beta · IBOV',buy||sell?money(r.investment):fmt(r.beta,3)],[buy?'Resultado compra → venda':sell?'Resultado vs. fechamento':'Data-base',Number.isFinite(r.profit)?money(r.profit):r.date]];
+  const items=[['Fechamento de referência',money(r.close)],['Quantidade selecionada',fmt(r.qty,0)],['Pontuação geral',fmt(r.score,0)]];
+  if(buy){items.push(['Preço provável de compra',money(r.buy)],['Variação vs. fechamento',pct(r.buyPct)],['Capital estimado',money(r.investment)]);if(Number.isFinite(r.profit))items.push(['Retorno potencial até alvo de saída',money(r.profit)]);}
+  else if(sell){items.push(['Preço provável de venda',money(r.sell)],['Variação vs. fechamento',pct(r.sellPct)],['Valor bruto da venda',money(r.investment)],['Resultado vs. fechamento',money(r.profit)]);}
+  else items.push(['Beta calculado vs. IBOV',fmt(r.beta,3)],['Data-base',r.date]);
   items.forEach((it,j)=>{const yy=y+122+j*31;ctx.fillStyle='#9aabc0';ctx.font='18px system-ui';ctx.fillText(it[0],x+28,yy);ctx.fillStyle='#eef4fb';ctx.font='bold 19px system-ui';ctx.textAlign='right';ctx.fillText(it[1],x+cardW-28,yy);ctx.textAlign='left'});
   rr(x+20,y+cardH-48,cardW-40,8,4,accent);
  });
