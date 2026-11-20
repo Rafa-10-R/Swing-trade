@@ -1,5 +1,5 @@
-const CACHE='swingtrade-shell-v6';
-const CORE=['./','./index.html','./app.js?v=20261120-6','./manifest.webmanifest','./icon.svg'];
+const CACHE='swingtrade-shell-v7';
+const CORE=['./','./index.html','./app.js?v=20261120-7','./manifest.webmanifest','./icon.svg'];
 self.addEventListener('install',event=>{event.waitUntil((async()=>{const c=await caches.open(CACHE);await c.addAll(CORE);await self.skipWaiting()})())});
 self.addEventListener('activate',event=>{event.waitUntil((async()=>{for(const k of await caches.keys())if(k!==CACHE)await caches.delete(k);await self.clients.claim()})())});
 self.addEventListener('message',event=>{if(event.data==='SKIP_WAITING')self.skipWaiting()});

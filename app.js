@@ -5,7 +5,7 @@ const pct=n=>Number.isFinite(Number(n))?(Number(n)*100).toFixed(2).replace('.','
 const money=n=>Number.isFinite(Number(n))?'R$ '+fmt(n):'—';
 const STORE='swingtrade-v3-state';
 let state={tickers:[],data:{},active:null,compare:['IBOV'],news:[],ibov:null,overrides:{},assets:[],tradePlan:{}};
-try{state={...state,...JSON.parse(localStorage.getItem(STORE)||'{}')}}catch{} if(!Array.isArray(state.compare)||!state.compare.length)state.compare=['IBOV'];
+try{state={...state,...JSON.parse(localStorage.getItem(STORE)||'{}')}}catch{} if(!Array.isArray(state.compare))state.compare=[];state.compare=state.compare.filter(t=>t!=='IBOV'&&state.tickers.includes(t)).slice(0,6);if(!state.compare.length)state.compare=state.tickers.slice(0,6);
 const save=()=>localStorage.setItem(STORE,JSON.stringify(state));
 const proxy='https://proxy.cors.dev/';
 const yahoo='https://query1.finance.yahoo.com';
@@ -92,7 +92,7 @@ async function loadNews(){try{const u='https://news.google.com/rss/search?q='+en
 
 
 function renderRanking(){
- const entries=Object.values(state.data).sort((a,b)=>b.metrics.score-a.metrics.score);
+ const entries=state.tickers.map(t=>state.data[t]).filter(Boolean).sort((a,b)=>b.metrics.score-a.metrics.score);
  const rows=entries.map(a=>{
   const m=a.metrics,close=a.rows[0].close,plan=state.tradePlan?.[a.ticker]||{},q=plan.qty??m.qty;
   const values=[`<td><b>${safeText(a.ticker)}</b></td>`,`<td class="score">${fmt(m.score,0)}</td>`,`<td>${money(m.lpa3)}</td>`,`<td>${fmt(q,0)}</td>`,`<td>${money(m.buy)}</td>`,`<td>${pct(m.buy/close-1)}</td>`,`<td>${money(m.sell)}</td>`,`<td>${pct(m.sell/close-1)}</td>`,`<td>${pct(m.probOpen)}</td>`,`<td>${pct(m.probHighBelowOpen)}</td>`,`<td>${pct(m.probHighBelowLowPrev)}</td>`,`<td>${pct(m.probHighBelowPrev)}</td>`,`<td>${pct(m.probFollowIBOV)}</td>`,`<td>${fmt(m.beta,3)}</td>`,`<td>${pct(m.probCloseLow)}</td>`,`<td>${pct(m.probNextLow)}</td>`,`<td>${pct(m.dailyVariation)}</td>`,`<td>${pct(m.weekly)}</td>`,`<td>${safeText(m.priceRisk)}</td>`,`<td>${safeText(m.trend)}</td>`];
@@ -101,14 +101,14 @@ function renderRanking(){
  const ib=state.ibov?.rows?.length?`<tr><td><b>IBOV</b> <span class="tag">Benchmark</span></td><td>${fmt(state.ibov.metrics.score,0)}</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>1,000</td><td>—</td><td>—</td><td>${pct(state.ibov.metrics.dailyVariation)}</td><td>${pct(state.ibov.metrics.weekly)}</td><td>Benchmark</td><td>${safeText(state.ibov.metrics.trend)}</td></tr>`:'';
  $('ranking').querySelector('tbody').innerHTML=(rows+ib)||'<tr><td colspan="20" class="muted">Nenhum ativo carregado.</td></tr>';
  document.querySelectorAll('[data-open]').forEach(el=>el.onclick=()=>openAsset(el.dataset.open));
- $('watchlist').innerHTML=state.tickers.map(t=>`<button data-watch="${safeText(t)}">${safeText(t)} ×</button>`).join('')||'<span class="muted small">Lista vazia.</span>';
- document.querySelectorAll('[data-watch]').forEach(b=>b.onclick=()=>{state.tickers=state.tickers.filter(t=>t!==b.dataset.watch);save();renderRanking()});
+ $('watchlist').innerHTML=state.tickers.map(t=>`<span class="watch-chip"><b>${safeText(t)}</b><button type="button" aria-label="Remover ${safeText(t)}" data-remove-watch="${safeText(t)}">×</button></span>`).join('')||'<span class="muted small">Nenhum ativo selecionado. Pesquise acima e toque em Adicionar.</span>';
+ document.querySelectorAll('[data-remove-watch]').forEach(b=>b.onclick=()=>removeTicker(b.dataset.removeWatch));
  renderPlan();renderCompareSelectors();
 }
 
 function renderPlan(){
  const tbody=$('planTable')?.querySelector('tbody');if(!tbody)return;
- const entries=Object.values(state.data).sort((a,b)=>a.ticker.localeCompare(b.ticker));
+ const entries=state.tickers.map(t=>state.data[t]).filter(Boolean).sort((a,b)=>a.ticker.localeCompare(b.ticker));
  if(!entries.length){tbody.innerHTML='<tr><td colspan="9" class="muted">Carregue ações para montar o plano do próximo pregão.</td></tr>';return}
  state.tradePlan=state.tradePlan||{};
  tbody.innerHTML=entries.map(a=>{
@@ -125,9 +125,16 @@ function renderSimulation(a){const qEl=$('simQty'),pEl=$('simPrice'),out=$('simR
 function openAsset(t){const a=state.data[t];if(!a)return;state.active=t;save();$('assetInput').value=t;$('assetContent').classList.remove('hide');$('assetStatus').textContent=`${a.rows.length} pregões · ${a.source} · atualizado ${new Date(a.updated).toLocaleString('pt-BR')}`;$('assetTicker').textContent=t;$('assetDate').textContent='Último fechamento confirmado: '+a.rows[0].date+' · '+(a.rows[0].date===todaySP()?'D-0':'último pregão concluído')+' · '+a.rows.length+' observações';$('assetScore').textContent=a.metrics.score+' pontos';const m=a.metrics;$('assetMetrics').innerHTML=[['Último fechamento',money(a.rows[0].close)],['Pontuação geral',m.score+' pts'],['Preço de compra',money(m.buy)],['Preço de venda',money(m.sell)],['Lucro médio / ação (3d)',money(m.lpa3)],['Quantidade sugerida',m.qty.toLocaleString('pt-BR')],['Variação semanal',pct(m.weekly)],['Risco pelo preço',m.priceRisk]].map(([l,v])=>`<div class="metric"><label>${l}</label><strong>${v}</strong></div>`).join('');drawChart(a);$('chartStart').textContent=a.rows.at(-1).date;$('chartEnd').textContent=a.rows[0].date;$('historyTable').querySelector('tbody').innerHTML=a.calc.map(r=>{const cells=[['I',r.I,pct(r.I),r.I<0],['J',r.J,pct(r.J),r.J<0],['K',r.K,pct(r.K),r.K<0],['L',r.L,pct(r.L),r.L<.02],['M',r.M,pct(r.M),r.M<.007],['N',r.N,pct(r.N),r.N<.007],['O',r.O,money(r.O),false],['P',r.P,r.P?'Sim':'',false],['Q',r.Q,r.Q?'Sim':'',false],['R',r.R,r.R?'Sim':'',false],['S',r.S,money(r.S),false]];return `<tr><td>${r.date}</td><td>${money(r.close)}</td><td>${money(r.open)}</td><td>${money(r.high)}</td><td>${money(r.low)}</td><td>${Number(r.volume).toLocaleString('pt-BR')}</td><td>${pct(r.G)}</td>${cells.map(([col,val,text,flag])=>`<td class="${flag?(col==='K'?'cf-green':'cf-red'):(['P','Q','R'].includes(col)&&val?'signal':'')}">${text||'—'}</td>`).join('')}</tr>`}).join('');$('projections').innerHTML=[['Pessimista',m.pess],['Neutro',m.neutral],['Otimista',m.opt],['Compra estimada',m.buy],['Venda estimada',m.sell],['Amplitude média (3d)',m.d138]].map(([l,v])=>`<div class="metric"><label>${l}</label><strong>${money(v)}</strong><span class="small">${pct(v/a.rows[0].close-1)}</span></div>`).join('');renderSimulation(a);const ruleSelect=$('buyRuleSelect');if(ruleSelect){ruleSelect.value=m.buyMethod;ruleSelect.onchange=()=>{state.projectionRules=state.projectionRules||{};state.projectionRules[t]=ruleSelect.value;const updated=compute(t,a.rows,state.ibov?.rows||[]);state.data[t]=updated;save();renderRanking();openAsset(t)}}const rows=[['I · Abertura x último anterior',m.I],['J · Máxima x último anterior',m.J],['K · Mínima x último anterior',m.K],['L · Máxima x mínima anterior',m.L],['M · Último x mínima do dia',m.M],['N · Máxima x abertura',m.N],['O · Amplitude média',m.O],['P · Queda acompanhando IBOV',m.P],['Q · Máxima abaixo no dia seguinte',m.Q],['R · Abertura e máxima',m.R],['Média K (3/7/30/positivos/geral)',[m.k3,m.k7,m.k30,m.kp,m.kg].map(pct).join(' / ')],['Média L (3/7/30/positivos/geral)',[m.l3,m.l7,m.l30,m.lp,m.lg].map(pct).join(' / ')],['Média global K (base da projeção de compra)',pct(m.globalK)],['Média global L (base da projeção de venda)',pct(m.globalL)],['Amplitude diária (3d / semanal / geral)',[m.amp3,m.ampWeekly,m.ampGeneral].map(money).join(' / ')],['Prob. abertura < fechamento anterior',pct(m.probOpen)],['Prob. máxima abaixo no dia seguinte',pct(m.probNextLow)],['Notícias',m.news],['Tendência IBOV',m.trend],['Beta estimado (252 pregões)',fmt(m.beta,3)],['Máxima 52 semanas',money(m.max52)],['Mínima 52 semanas',money(m.min52)]];$('indicators').innerHTML=rows.map(([l,v])=>`<tr><td>${l}</td><td>${typeof v==='number'&&Math.abs(v)<=1?pct(v):v}</td></tr>`).join('');const ov=state.overrides[t]||{};$('newsOverride').value=ov.news||'auto';$('trendOverride').value=ov.trend||'auto';$('betaInput').value=Number.isFinite(m.beta)?m.beta:'';$('high52').value=ov.high52??'';$('low52').value=ov.low52??'';switchTab('ativo')}
 function drawChart(a){const values=a.rows.slice().reverse().map(r=>r.close),min=Math.min(...values),max=Math.max(...values),w=700,h=160,p=8;const pts=values.map((v,i)=>[p+i/(values.length-1)*(w-2*p),h-p-(v-min)/(max-min||1)*(h-2*p)]);const d=pts.map((q,i)=>(i?'L':'M')+q[0].toFixed(1)+' '+q[1].toFixed(1)).join(' ');$('chartLine').setAttribute('d',d);$('chartArea').setAttribute('d',d+` L ${w-p} ${h-p} L ${p} ${h-p} Z`)}
 function renderCompareSelectors(){
- const loaded=[...(state.ibov?.rows?.length?['IBOV']:[]),...Object.keys(state.data)];
- $('compareSelectors').innerHTML=Array.from({length:6},(_,i)=>`<select class="input" data-compare="${i}"><option value="">Papel ${i+1}</option>${loaded.map(t=>`<option ${state.compare[i]===t?'selected':''} value="${t}">${t==='IBOV'?'IBOV · Benchmark':t}</option>`).join('')}</select>`).join('');
- document.querySelectorAll('[data-compare]').forEach(s=>s.onchange=()=>{state.compare[s.dataset.compare]=s.value;state.compare=state.compare.slice(0,6);save();renderCompare()});
+ const loaded=state.tickers.filter(t=>state.data[t]);
+ // Até seis ações são selecionáveis; IBOV é acrescentado automaticamente como benchmark.
+ state.compare=(Array.isArray(state.compare)?state.compare:[]).filter(t=>t!=='IBOV'&&loaded.includes(t)).slice(0,6);
+ $('compareSelectors').innerHTML=Array.from({length:6},(_,i)=>`<select class="input" data-compare="${i}" aria-label="Ativo ${i+1}"><option value="">${i<2?'Selecionar ativo '+(i+1):'Adicionar ativo '+(i+1)}</option>${loaded.map(t=>`<option ${state.compare[i]===t?'selected':''} value="${safeText(t)}">${safeText(t)}</option>`).join('')}</select>`).join('');
+ document.querySelectorAll('[data-compare]').forEach(s=>s.onchange=()=>{
+  const i=Number(s.dataset.compare),v=s.value;
+  if(v&&state.compare.some((x,j)=>x===v&&j!==i)){s.value=state.compare[i]||'';return}
+  if(v)state.compare[i]=v;else state.compare[i]='';
+  state.compare=state.compare.filter(Boolean).slice(0,6);save();renderCompareSelectors();
+ });
  renderCompare();
 }
 function compareColor(value,values,goodHigh=true){
@@ -139,7 +146,7 @@ function compareColor(value,values,goodHigh=true){
  const c=a.map((v,i)=>Math.round(v+(b[i]-v)*local));return `background:rgb(${c.join(',')});color:#202938`;
 }
 function renderCompare(){
- const list=state.compare.filter(t=>t==='IBOV'?state.ibov?.metrics:state.data[t]).slice(0,6);
+ const stocks=state.compare.filter(t=>state.tickers.includes(t)&&state.data[t]).slice(0,6);const list=[...stocks,...(state.ibov?.metrics?['IBOV']:[])];
  if(!list.length){$('compareTable').innerHTML='<tbody><tr><td class="muted">Carregue ativos para comparar.</td></tr></tbody>';return}
  const get=t=>t==='IBOV'?state.ibov:state.data[t],m=t=>get(t).metrics;
  const defs=[
@@ -160,8 +167,8 @@ function renderCompare(){
   if(type==='qty'){
    body+=`<tr><th>${label}</th>${list.map(t=>{const def=m(t).qty||0;state.tradePlan=state.tradePlan||{};const q=state.tradePlan[t]?.qty??def;return `<td>${t==='IBOV'?'—':`<input class="compare-qty" type="number" min="0" step="1" data-qty="${safeText(t)}" value="${q}">`}</td>`}).join('')}<td>—</td></tr>`;continue;
   }
-  const vals=list.map(t=>fn(m(t))),numeric=vals.map(v=>typeof v==='number'&&Number.isFinite(v)?v:NaN),mean=avg(numeric);
-  const cells=vals.map((v,i)=>{let style='';if(type==='text'&&typeof v==='string')style=/Muito Alto|Alto/.test(v)?'background:#f8d7da;color:#842029':/Muito Baixo|Baixo/.test(v)?'background:#d1e7dd;color:#0f5132':'background:#fff0b3;color:#202938';else if(type!=='text'&&goodHigh!==null)style=compareColor(numeric[i],numeric,goodHigh);return `<td style="${style}">${fmtValue(v,type)}</td>`}).join('');
+  const vals=list.map(t=>fn(m(t))),numeric=vals.map(v=>typeof v==='number'&&Number.isFinite(v)?v:NaN),stockNumeric=stocks.map(t=>{const v=fn(m(t));return typeof v==='number'&&Number.isFinite(v)?v:NaN}),mean=avg(stockNumeric);
+  const cells=vals.map((v,i)=>{let style='';if(list[i]!=='IBOV'&&type==='text'&&typeof v==='string')style=/Muito Alto|Alto/.test(v)?'background:#f8d7da;color:#842029':/Muito Baixo|Baixo/.test(v)?'background:#d1e7dd;color:#0f5132':'background:#fff0b3;color:#202938';else if(list[i]!=='IBOV'&&type!=='text'&&goodHigh!==null)style=compareColor(numeric[i],stockNumeric,goodHigh);return `<td style="${style}">${fmtValue(v,type)}</td>`}).join('');
   body+=`<tr><th>${label}</th>${cells}<td><b>${Number.isFinite(mean)?fmtValue(mean,type):'—'}</b></td></tr>`;
  }
  const qtyList=list.map(t=>t==='IBOV'?0:(state.tradePlan?.[t]?.qty??m(t).qty));
@@ -180,9 +187,16 @@ function renderCompare(){
 }
 function renderNews(){if(!$('newsFeed'))return;if(!state.news.length){$('newsFeed').textContent='Nenhuma manchete disponível.';return}$('newsFeed').innerHTML=state.news.map(n=>`<div class="news"><a href="${safeText(n.link)}" target="_blank" rel="noopener">${safeText(n.title)}</a><div class="small muted">${safeText(n.source)} · ${safeText(n.date)}</div></div>`).join('')}
 function renderIbov(){if(!state.ibov)return;const m=state.ibov.metrics,r=state.ibov.rows[0];$('ibovMetrics').innerHTML=[['IBOV último',fmt(r.close,0)],['Variação semanal',pct(m.weekly)],['Risco pelo preço',m.priceRisk],['Tendência',marketTrend()]].map(([l,v])=>`<div class="metric"><label>${l}</label><strong>${v}</strong></div>`).join('');$('ibovStatus').textContent='Último pregão: '+r.date+' · histórico '+state.ibov.rows.length+' pregões'}
-function switchTab(tab){document.querySelectorAll('.tab').forEach(b=>b.classList.toggle('active',b.dataset.tab===tab));['geral','ativo','comparativo','noticias','regras'].forEach(x=>$('view-'+x).classList.toggle('hide',x!==tab));if(tab==='comparativo')renderCompareSelectors();if(tab==='noticias')renderIbov()}
+function switchTab(tab){document.querySelectorAll('.tab').forEach(b=>b.classList.toggle('active',b.dataset.tab===tab));['geral','ativo','comparativo','regras'].forEach(x=>$('view-'+x).classList.toggle('hide',x!==tab));if(tab==='comparativo')renderCompareSelectors()}
 document.querySelectorAll('.tab').forEach(b=>b.onclick=()=>switchTab(b.dataset.tab));
-async function add(t){t=t.toUpperCase().trim();if(!t)return;try{setStatus('generalStatus',`Consultando histórico de ${t}…`);const a=await loadTicker(t,true);if(!state.tickers.includes(t))state.tickers.push(t);save();renderRanking();openAsset(t);setStatus('generalStatus',`${t} carregado: ${a.rows.length} pregões. Fonte: ${a.source}.`)}catch(e){setStatus('generalStatus',e.message)}}
+function removeTicker(t){
+ state.tickers=state.tickers.filter(x=>x!==t);
+ state.compare=(state.compare||[]).filter(x=>x!==t);
+ if(state.active===t)state.active=null;
+ save();renderRanking();renderCompareSelectors();
+ if(state.tickers.length===0)setStatus('generalStatus','Nenhum ativo selecionado. Pesquise e adicione ações para começar.');
+}
+async function add(t){t=t.toUpperCase().trim();if(!t)return;try{setStatus('generalStatus',`Consultando histórico de ${t}…`);const a=await loadTicker(t,true);if(!state.tickers.includes(t))state.tickers.push(t);if(!state.compare.includes(t)&&state.compare.length<6)state.compare.push(t);save();renderRanking();openAsset(t);setStatus('generalStatus',`${t} carregado: ${a.rows.length} pregões. Fonte: ${a.source}.`)}catch(e){setStatus('generalStatus',e.message)}}
 $('addTicker').onclick=()=>add($('tickerInput').value);$('tickerInput').onkeydown=e=>{if(e.key==='Enter')add(e.target.value)};$('loadAsset').onclick=()=>add($('assetInput').value);$('refreshAsset').onclick=async()=>{if(state.active)try{const a=await loadTicker(state.active,true);renderRanking();openAsset(a.ticker)}catch(e){setStatus('assetStatus',e.message)}};
 $('refreshAll').onclick=async()=>{setStatus('generalStatus','Atualizando cadastro, IBOV e ativos…');try{await loadUniverse(true)}catch(e){setStatus('generalStatus','Cadastro indisponível: '+e.message)}try{await loadIbov()}catch(e){setStatus('ibovStatus',e.message)}for(const t of state.tickers){try{await loadTicker(t,true)}catch(e){console.warn(t,e)}}renderRanking();setStatus('generalStatus','Atualização concluída. Os ativos são selecionáveis pelo cadastro pesquisável da B3.')};
 $('refreshNews').onclick=loadNews;

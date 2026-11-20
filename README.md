@@ -1,17 +1,13 @@
-# Swing Trade Pessoal — v6
+# Swing Trade Pessoal — v7
 
-PWA para Android, publicada pelo GitHub Pages.
+## Alterações
+- Removida a aba visível "Notícias / IBOV". O IBOV continua sendo carregado e exibido automaticamente como benchmark no comparativo e nas métricas de mercado.
+- Até seis ações/Units selecionáveis no comparativo; IBOV é uma coluna adicional fixa e não consome uma das seis vagas.
+- Comparativo mostra somente os ativos selecionados na lista global; a lista de ativos pode ser gerenciada no Resumo.
+- Remoção de um ativo na lista global o retira também do Resumo, do seletor de comparação e das demais telas que dependem da lista monitorada.
+- Colunas dos ativos centralizadas; primeira coluna congelada com fundo opaco e rolagem horizontal independente.
+- Escalas de cores recalculadas somente entre os ativos selecionados; o IBOV e a média não influenciam as cores dos papéis.
+- Service Worker/cache atualizado para v7.
 
-## Alterações v6
-- Aba inicial renomeada para **Resumo**.
-- Plano do próximo pregão com classificação por ativo: Comprar, Vender ou Acompanhar.
-- Quantidade compartilhada entre Resumo, Comparativo e Simulação do Ativo.
-- Painel Resumo com os campos correspondentes às colunas C:U da aba Geral da planilha.
-- Comparativo com até seis ativos e primeira coluna congelada sem sobrepor as colunas de valores.
-- Histórico Yahoo Finance solicita também a sessão da data atual; a vela D-0 só é incluída quando a sessão regular está encerrada. Durante o pregão, o último fechamento confirmado permanece como base.
-
-## Atualização
-Substitua `index.html`, `app.js` e `sw.js` na raiz do repositório GitHub Pages e faça Commit Changes. O cache passa a `swingtrade-shell-v6`.
-
-## Limitações
-A fonte gratuita Yahoo Finance é não oficial e pode atrasar ou falhar. O D-0 só fica disponível após o fechamento confirmado e atualização do provedor; antes disso, o aplicativo não usa uma vela intradiária incompleta como fechamento.
+## Publicação
+Substitua index.html, app.js e sw.js na raiz do GitHub Pages e faça commit.
