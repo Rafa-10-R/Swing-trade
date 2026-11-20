@@ -1,11 +1,6 @@
-const CACHE='swingtrade-static-v3-20261120-3';
-const CORE=['./','./index.html','./app.js?v=20261120-3','./manifest.webmanifest','./icon.svg'];
-self.addEventListener('install',event=>{event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(CORE)).then(()=>self.skipWaiting()));});
-self.addEventListener('activate',event=>{event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k.startsWith('swingtrade-')&&k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim()));});
-self.addEventListener('message',event=>{if(event.data==='SKIP_WAITING')self.skipWaiting();});
-self.addEventListener('fetch',event=>{
- const req=event.request;if(req.method!=='GET')return;const url=new URL(req.url);if(url.origin!==self.location.origin)return;
- const isAppAsset=/\/(index\.html|app\.js|sw\.js|manifest\.webmanifest)$/.test(url.pathname)||url.pathname.endsWith('/');
- if(isAppAsset){event.respondWith(fetch(req,{cache:'no-store'}).then(res=>{if(res.ok){const copy=res.clone();caches.open(CACHE).then(c=>c.put(req,copy));}return res;}).catch(()=>caches.match(req).then(hit=>hit||caches.match('./index.html'))));return;}
- event.respondWith(caches.match(req).then(hit=>hit||fetch(req).then(res=>{if(res.ok){const copy=res.clone();caches.open(CACHE).then(c=>c.put(req,copy));}return res;})));
-});
+const CACHE='swingtrade-shell-v4';
+const CORE=['./','./index.html','./app.js?v=20261120-4','./manifest.webmanifest','./icon.svg'];
+self.addEventListener('install',event=>{event.waitUntil((async()=>{const c=await caches.open(CACHE);await c.addAll(CORE);await self.skipWaiting()})())});
+self.addEventListener('activate',event=>{event.waitUntil((async()=>{for(const k of await caches.keys())if(k!==CACHE)await caches.delete(k);await self.clients.claim()})())});
+self.addEventListener('message',event=>{if(event.data==='SKIP_WAITING')self.skipWaiting()});
+self.addEventListener('fetch',event=>{const u=new URL(event.request.url);if(u.origin!==location.origin)return;event.respondWith((async()=>{try{const fresh=await fetch(event.request,{cache:'no-store'});if(fresh.ok){const c=await caches.open(CACHE);c.put(event.request,fresh.clone())}return fresh}catch(e){const cached=await caches.match(event.request);if(cached)return cached;throw e}})())});

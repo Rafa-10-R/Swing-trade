@@ -34,3 +34,19 @@ A quantidade sugerida pode ser alterada. O preço esperado de venda é editável
 
 ## Fontes e limitações
 Cadastro de ativos: brapi; histórico: Yahoo Finance via proxy CORS, com fallback brapi quando disponível. A disponibilidade e cobertura dessas fontes gratuitas não são garantidas. O IBOV é carregado como benchmark padrão. Confirmar cotações com a corretora.
+
+## Histórico I:S (réplica da planilha)
+A tabela histórica agora calcula I:S em todos os pregões retornados, com a série em ordem decrescente (D-1 para trás):
+- I = Abertura / fechamento do pregão anterior - 1
+- J = Máxima / fechamento do pregão anterior - 1
+- K = 1 - Mínima / fechamento do pregão anterior
+- L = Máxima do dia / mínima do pregão anterior - 1
+- M = Fechamento / mínima do próprio dia - 1
+- N = Máxima / abertura do próprio dia - 1
+- O = Máxima do dia - mínima do pregão anterior (R$)
+- P = "Sim" quando ação e IBOV caem no mesmo pregão
+- Q = "Sim" quando L < 2% e M do pregão seguinte na tabela < 0,7%
+- R = "Sim" quando I < 0% e N < 0,7%
+- S = Máxima - mínima do próprio dia (R$)
+
+Formatação condicional reproduzida: I e J em vermelho quando < 0; K em verde quando < 0; L em vermelho quando < 2%; M e N em vermelho quando < 0,7%. As células com P/Q/R verdadeiros recebem destaque verde tipográfico no app.
