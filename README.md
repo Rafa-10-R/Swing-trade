@@ -1,13 +1,16 @@
-# Swing Trade Pessoal — v7
+# Swing Trade Pessoal — v8
 
 ## Alterações
-- Removida a aba visível "Notícias / IBOV". O IBOV continua sendo carregado e exibido automaticamente como benchmark no comparativo e nas métricas de mercado.
-- Até seis ações/Units selecionáveis no comparativo; IBOV é uma coluna adicional fixa e não consome uma das seis vagas.
-- Comparativo mostra somente os ativos selecionados na lista global; a lista de ativos pode ser gerenciada no Resumo.
-- Remoção de um ativo na lista global o retira também do Resumo, do seletor de comparação e das demais telas que dependem da lista monitorada.
-- Colunas dos ativos centralizadas; primeira coluna congelada com fundo opaco e rolagem horizontal independente.
-- Escalas de cores recalculadas somente entre os ativos selecionados; o IBOV e a média não influenciam as cores dos papéis.
-- Service Worker/cache atualizado para v7.
+- Beta calculado pelo app: covariância dos retornos diários ajustados da ação dividida pela variância dos retornos diários do IBOV, usando até 252 pregões coincidentes (mínimo de 30 observações).
+- Persistência principal em IndexedDB, com migração automática do estado existente em localStorage.
+- Solicitação de armazenamento persistente pelo navegador (`navigator.storage.persist()`), quando suportada.
+- Exportação do Resumo em imagem JPEG responsiva, com cards por ativo e destaque verde para compra e vermelho para venda.
+- Backup JSON exportável e restauração de backup.
+- Resumo com células de compra em verde e venda em vermelho.
+- Cache atualizado para v8.
+
+## Persistência: limite importante
+IndexedDB não é o cache do Service Worker e permanece após fechar/reabrir o app e após limpar apenas arquivos/imagens em cache. Se o usuário selecionar “limpar dados do site”, “limpar armazenamento” ou desinstalar/apagar dados do navegador, os dados locais podem ser removidos. Para sobreviver a isso e sincronizar entre dispositivos é necessário banco remoto com autenticação; o backup JSON é a proteção disponível nesta versão.
 
 ## Publicação
-Substitua index.html, app.js e sw.js na raiz do GitHub Pages e faça commit.
+Substitua `index.html`, `app.js` e `sw.js` na raiz do GitHub Pages e faça commit. Faça um backup JSON após a atualização.
