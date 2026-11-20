@@ -1,5 +1,5 @@
-const CACHE='swingtrade-static-v3-20261120-2';
-const CORE=['./','./index.html','./app.js?v=20261120-2','./manifest.webmanifest','./icon.svg'];
+const CACHE='swingtrade-static-v3-20261120-3';
+const CORE=['./','./index.html','./app.js?v=20261120-3','./manifest.webmanifest','./icon.svg'];
 self.addEventListener('install',event=>{event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(CORE)).then(()=>self.skipWaiting()));});
 self.addEventListener('activate',event=>{event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k.startsWith('swingtrade-')&&k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim()));});
 self.addEventListener('message',event=>{if(event.data==='SKIP_WAITING')self.skipWaiting();});
