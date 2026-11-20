@@ -1,32 +1,19 @@
-# Swing Trade Pessoal — PWA Android
+# Swing Trade Pessoal — versão 2026.11.20.2
 
-Aplicativo web instalável (PWA), pensado para uso pessoal. Interface em português.
+PWA pessoal para Android. Cadastro pesquisável de ações ordinárias e Units da B3; histórico diário; projeções e comparação.
 
-## Executar / instalar
+## Publicação no GitHub Pages
+Envie os arquivos da pasta para a raiz do repositório, substituindo os anteriores. Em Settings > Pages, publique `main` / `/ (root)`.
 
-1. Hospede o conteúdo desta pasta em um endereço HTTPS (por exemplo, GitHub Pages).
-2. Abra o endereço no Chrome do Android.
-3. Menu ⋮ → **Instalar app** ou **Adicionar à tela inicial**.
-4. Na primeira utilização, conecte à internet para carregar cotações e manchetes.
+## Fontes e limitações
+- Cadastro de ações/Units: `brapi.dev/api/quote/list` sem token, filtrando `type=stock` e `subType=stock|unit`.
+- Histórico: Yahoo Finance Chart API via `proxy.cors.dev`, ticker `.SA`, período de três anos, candles diários e filtro D-1.
+- Fallback: endpoint histórico brapi gratuito, quando disponível; a cobertura/intervalo pode ser limitada.
+- IBOV: Yahoo Finance `^BVSP` via o mesmo proxy.
+- Não há garantia de cobertura completa ou disponibilidade de provedores gratuitos. O app sinaliza erros e não inventa cotações.
 
-Também é possível testar `index.html` em navegador desktop, mas a instalação PWA exige HTTPS (ou localhost).
+## Metodologia
+A janela de indicadores segue a estrutura do Excel: 119 cotações recentes e contagens/estatísticas sobre 118 observações comparáveis. Projeções de compra/venda, cenários, pontuação, quantidades e comparativo são calculados no cliente. Beta é estimado por covariância dos retornos diários da ação contra IBOV (até 252 observações); o Excel original tinha beta digitado manualmente, portanto esse campo não é uma reprodução literal.
 
-## Fonte de dados gratuita
-
-O histórico diário é consultado no endpoint não oficial Yahoo Finance Chart (`query1.finance.yahoo.com/v8/finance/chart`) por meio do proxy CORS público `proxy.cors.dev`. Não exige token, mas não é API oficial, não oferece SLA e pode mudar, atrasar ou bloquear consultas. São solicitados três anos de candles diários e descartado o candle da data atual para respeitar D-1. A lista é mantida no armazenamento local do navegador.
-
-Notícias: Google News RSS via proxy CORS. O indicador de sentimento é uma heurística de palavras-chave e permanece editável.
-
-## Observação importante sobre fidelidade
-
-O Excel original tem fórmulas estruturadas por planilha, inclusive dependências de abas externas/ausentes no comparativo (por exemplo, CSAN3, AZUL4, RADL3, PETZ3, KLBN11 e RENT3), parâmetros manuais, campos com dados de terceiros e fórmulas de matriz. O app implementa os cálculos reproduzíveis identificados nas abas de ativo (janela de 119 observações, indicadores I:S, médias 3/7/30, lucro, risco, pontuação e projeções) e reconstrói o comparativo para até quatro tickers carregados. Campos de notícias/tendência/beta/52 semanas são editáveis.
-
-Não é possível afirmar equivalência integral, célula a célula, com o arquivo: o comparativo original contém vínculos para abas que não existem no arquivo enviado e parte dos inputs manuais não tem uma regra automatizável. Consulte e valide os resultados contra o Excel antes de qualquer uso operacional.
-
-## Arquivos
-
-- `index.html`: interface
-- `app.js`: dados, cálculos e interação
-- `manifest.webmanifest`, `sw.js`, `icon.svg`: instalação e cache
-
-Uso pessoal. Não constitui recomendação financeira.
+## Atualização
+`sw.js` usa cache versionado e rede primeiro para os arquivos do app; remove caches antigos e solicita atualização do Service Worker. `app.js` tem query string de versão. Depois do commit, feche e reabra o PWA ou atualize a página.
